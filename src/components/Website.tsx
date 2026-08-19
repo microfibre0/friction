@@ -1,9 +1,11 @@
+import { useState } from "react";
 type Props = {
   func?: () => void;
   title?: string;
   src?: string;
   bg?: string;
   gradient?: string;
+  index?: string;
   name?: string;
   btn_tmr?: boolean;
   hide_img?: boolean;
@@ -12,11 +14,15 @@ type Props = {
 function Website({ bg, gradient, src }: Props) {
   const height = "90px";
   const width = "300px";
+  const [settings, settingsVis] = useState(true);
   return (
     <>
       <div
         className={`relative`}
         style={{ background: `${bg}`, height: `${height}`, width: `${width}` }}
+        onClick={() => {
+          settingsVis(!settings);
+        }}
       >
         <img
           src={src}
@@ -34,10 +40,12 @@ function Website({ bg, gradient, src }: Props) {
         <div className="border absolute bottom-0 right-0 w-[200px] h-[60px] z-30"></div>
       </div>
 
-      <div
-        className="absolute w-8/12 h-8/12 left-2/12 top-2/12 border z-40"
-        style={{ background: gradient }}
-      ></div>
+      {settings && (
+        <div
+          className="absolute w-8/12 h-8/12 left-2/12 top-2/12 border z-40"
+          style={{ background: gradient }}
+        ></div>
+      )}
     </>
   );
 }
