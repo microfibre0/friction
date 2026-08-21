@@ -4,8 +4,8 @@ import plus from "./assets/gray plus.svg";
 import { useState } from "react";
 function App() {
   const bg_dark = "#202020";
-  const [state, updateState] = useState(true);
-  let websites = {};
+  const [websites, setWebsites] = useState({});
+
   /*const add_website = (
     index: string,
     name: string,
@@ -18,11 +18,14 @@ function App() {
   };*/
 
   const getSites = async () => {
-    // gets websites, converts to [[key], {key:val}]
-    const storage = await chrome.storage.sync.get();
-    websites = storage;
-    updateState(!state);
+    console.log(JSON.stringify(websites) === JSON.stringify({}));
+    if (JSON.stringify(websites) === JSON.stringify({})) {
+      // stringifiead as you cant compare normally
+      const storage = await chrome.storage.sync.get();
+      setWebsites(storage);
+    }
   };
+
   getSites();
   console.log(websites);
 
