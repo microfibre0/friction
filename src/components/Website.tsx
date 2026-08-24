@@ -14,7 +14,7 @@ type Props = {
 function Website({ bg, gradient, src }: Props) {
   const height = "90px";
   const width = "300px";
-  const [settings, settingsVis] = useState(true);
+  const [settings, settingsVis] = useState(false);
   return (
     <>
       <div

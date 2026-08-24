@@ -1,33 +1,48 @@
 import "./App.css";
 import Website from "./components/Website";
-import plus from "./assets/gray plus.svg";
-import { useState } from "react";
+import { useState, useRef } from "react";
 function App() {
-  const bg_dark = "#202020";
-  const [websites, setWebsites] = useState({});
+  interface model {
+    [key: string]: unknown;
+  }
 
-  /*const add_website = (
-    index: string,
-    name: string,
-    btn_tmr: boolean,
-    hide_img: boolean,
-  ) => {
-    chrome.storage.sync.set({
-      [index]: { name: name, btn_tmr: btn_tmr, hide_img: hide_img },
-    });
-  };*/
+  const bg_dark = "#202020";
+  const [websites, setWebsites] = useState<model>({
+    name: { btn_tmr: true, hide_img: true },
+  });
+  const updated = useRef(false);
 
   const getSites = async () => {
-    console.log(JSON.stringify(websites) === JSON.stringify({}));
-    if (JSON.stringify(websites) === JSON.stringify({})) {
+    // retries site options from chrom storage
+    if (
+      JSON.stringify(websites) ===
+      JSON.stringify({
+        name: { btn_tmr: true, hide_img: true },
+      })
+    ) {
       // stringifiead as you cant compare normally
       const storage = await chrome.storage.sync.get();
       setWebsites(storage);
+      updated.current = true;
     }
   };
-
+  /*
+  const add_website = (name: string, btn_tmr: boolean, hide_img: boolean) => {
+    //way to populat storage for dev use
+    chrome.storage.sync.set({
+      [name]: { btn_tmr: btn_tmr, hide_img: hide_img },
+    });
+  };
+*/
   getSites();
-  console.log(websites);
+
+  const btn_qu: boolean = updated.current
+    ? (websites as { [name: string]: { btn_tmr: boolean } }).facebook.btn_tmr
+    : false;
+
+  const hide_qu: boolean = updated.current
+    ? (websites as { [name: string]: { hide_img: boolean } }).facebook.hide_img
+    : false;
 
   return (
     <>
@@ -39,7 +54,15 @@ function App() {
           <h2 className="text-2xl h-[50] flex justify-center bg-gray-600">
             websites
           </h2>
-          <Website bg={"#707070"} gradient={"#999999"} src={plus} />
+          {Object.keys(websites).map((website) => (
+            <Website
+              name={website}
+              btn_tmr={btn_qu}
+              hide_img={hide_qu}
+              bg={"#3b3b3b"}
+              gradient={"#737373"}
+            />
+          ))}
         </div>
       </div>
     </>
