@@ -1,12 +1,11 @@
 import { useState } from "react";
 type Props = {
-  func?: () => void;
-  title?: string;
+  url: string;
   src?: string;
   bg?: string;
   gradient?: string;
   index?: string;
-  name?: string;
+  title: string;
   btn_tmr?: boolean;
   hide_img?: boolean;
 };
