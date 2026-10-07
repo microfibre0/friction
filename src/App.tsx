@@ -1,68 +1,70 @@
+import { useState } from "react";
+import { platforms, settingDefinitions } from "./data/platforms";
+import type { PlatformSettingsState } from "./data/platforms";
+import { colors } from "./data/colors";
+import { PlatformList } from "./components/PlatformList";
+import { PlatformSettings } from "./components/PlatformSettings";
 import "./App.css";
-import Website from "./components/Website";
-import Add from "./components/Add";
-import { useState, useRef } from "react";
+
+function createInitialSettings(): PlatformSettingsState {
+  return Object.fromEntries(
+    platforms.map((platform) => [
+      platform.id,
+      Object.fromEntries(
+        settingDefinitions.map((setting) => [
+          setting.id,
+          setting.defaultEnabled,
+        ]),
+      ),
+    ]),
+  );
+}
+
 function App() {
-  interface model {
-    [key: string]: unknown;
+  const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(
+    null,
+  );
+  const [settings, setSettings] =
+    useState<PlatformSettingsState>(createInitialSettings);
+
+  const selectedPlatform = platforms.find(
+    (platform) => platform.id === selectedPlatformId,
+  );
+
+  function toggleSetting(platformId: string, settingId: string) {
+    setSettings((currentSettings) => ({
+      ...currentSettings,
+      [platformId]: {
+        ...currentSettings[platformId],
+        [settingId]: !currentSettings[platformId][settingId],
+      },
+    }));
   }
 
-  const bg_dark = "#202020";
-  const [websites, setWebsites] = useState<model>({});
-  const updated = useRef(false);
-
-  const getSites = async () => {
-    // retrieve site options from chrome storage
-    if (!updated.current) {
-      const storage = await chrome.storage.sync.get();
-      setWebsites(storage);
-      updated.current = true;
-    }
-  };
-
-  getSites();
-
   return (
-    <>
-      <div className={`h-[500px] w-[300px] border bg-[${bg_dark}]`}>
-        <div className="h-1/12 flex justify-center items-center">
-          <h1 className="text-3xl ">friction</h1>
-          <Add />
-        </div>
-        <div className="h-11/12 ">
-          <h2 className="text-2xl h-[50] flex justify-center bg-gray-600">
-            websites
-          </h2>
-          {Object.keys(websites).map((website) => (
-            <Website
-              title={website}
-              btn_tmr={
-                updated.current
-                  ? (websites as { [name: string]: { btn_tmr: boolean } })[
-                      website
-                    ].btn_tmr
-                  : false
-              }
-              hide_img={
-                updated.current
-                  ? (websites as { [name: string]: { hide_img: boolean } })[
-                      website
-                    ].hide_img
-                  : false
-              }
-              url={
-                updated.current
-                  ? (websites as { [name: string]: { url: string } })[website]
-                      .url
-                  : ""
-              }
-              bg={"#3b3b3b"}
-              gradient={"#737373"}
-            />
-          ))}
-        </div>
-      </div>
-    </>
+    <main
+      className="flex min-h-dvh items-center justify-center p-0"
+      style={{ backgroundColor: colors.pageBackground, color: colors.textPrimary }}
+    >
+      <section
+        aria-label="Friction settings"
+        className="h-[min(600px,100dvh)] w-[min(450px,100vw)] overflow-hidden"
+        style={{ backgroundColor: colors.surface }}
+      >
+        {selectedPlatform ? (
+          <PlatformSettings
+            onBack={() => setSelectedPlatformId(null)}
+            onToggleSetting={(settingId) =>
+              toggleSetting(selectedPlatform.id, settingId)
+            }
+            platform={selectedPlatform}
+            settings={settings[selectedPlatform.id]}
+          />
+        ) : (
+          <PlatformList onSelectPlatform={setSelectedPlatformId} />
+        )}
+      </section>
+    </main>
   );
 }
 
