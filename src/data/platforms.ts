@@ -47,7 +47,7 @@ export const settingDefinitions: SettingDefinition[] = [
     id: "hideImages",
     label: "Hide images",
     description: "hides images, click on them to get them back.",
-    defaultEnabled: true,
+    defaultEnabled: false,
   },
   {
     id: "buttonTimers",

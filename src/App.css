@@ -1,2 +1,23 @@
 @import 'tailwindcss';
 
+.platform-color-picker {
+  appearance: none;
+  -webkit-appearance: none;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: 4px;
+  background: transparent;
+  padding: 0;
+}
+
+.platform-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.platform-color-picker::-webkit-color-swatch {
+  border: 0;
+}
+
+.platform-color-picker::-moz-color-swatch {
+  border: 0;
+}
