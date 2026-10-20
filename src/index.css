@@ -5,10 +5,16 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color-scheme: dark;
+  caret-color: transparent;
 }
 
 * {
   box-sizing: border-box;
+}
+
+input,
+textarea {
+  caret-color: auto;
 }
 
 html,

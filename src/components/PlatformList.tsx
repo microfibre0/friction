@@ -3,6 +3,7 @@ import { colors } from "../data/colors";
 import type { Platform, PlatformSettingsState } from "../data/platforms";
 import { BrandHeader } from "./BrandHeader";
 import { PlatformCard } from "./PlatformCard";
+import plusIcon from "../assets/gray plus.svg";
 
 type PlatformListProps = {
   onAddWebsite: (website: string) => Promise<boolean>;
@@ -144,9 +145,7 @@ export function PlatformList({
             }}
             type="button"
           >
-            <span aria-hidden="true" className="text-[20px] leading-none">
-              +
-            </span>
+            <img alt="" className="size-4" src={plusIcon} />
             Add website
           </button>
         )}

@@ -4,6 +4,7 @@ export type Platform = {
   id: string;
   name: string;
   website: string;
+  url: string;
   description: string;
   colors: {
     card: string;
@@ -30,6 +31,7 @@ export const platforms: Platform[] = [
     id: "facebook",
     name: "Facebook",
     website: "www.facebook.com",
+    url: "https://www.facebook.com",
     description: "description text",
     colors: colors.platforms.facebook,
   },
@@ -37,6 +39,7 @@ export const platforms: Platform[] = [
     id: "youtube",
     name: "YouTube",
     website: "www.youtube.com",
+    url: "https://www.youtube.com",
     description: "description text",
     colors: colors.platforms.youtube,
   },

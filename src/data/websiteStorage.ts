@@ -1,7 +1,13 @@
 const customWebsitesStorageKey = "customWebsites";
 const platformCardColorsStorageKey = "platformCardColors";
+const platformOverridesStorageKey = "platformOverrides";
 
 export type PlatformCardColors = Record<string, string>;
+export type PlatformOverride = {
+  name: string;
+  url: string;
+};
+export type PlatformOverrides = Record<string, PlatformOverride>;
 
 export function normalizeWebsiteUrl(value: string): string {
   const trimmedValue = value.trim();
@@ -60,10 +66,12 @@ export async function saveCustomWebsites(websites: string[]): Promise<void> {
 export async function saveWebsitePreferences(
   websites: string[],
   cardColors: PlatformCardColors,
+  platformOverrides: PlatformOverrides,
 ): Promise<void> {
   await getSyncStorage().set({
     [customWebsitesStorageKey]: websites,
     [platformCardColorsStorageKey]: cardColors,
+    [platformOverridesStorageKey]: platformOverrides,
   });
 }
 
@@ -98,4 +106,44 @@ export async function savePlatformCardColors(
   await getSyncStorage().set({
     [platformCardColorsStorageKey]: cardColors,
   });
+}
+
+export async function loadPlatformOverrides(): Promise<PlatformOverrides> {
+  const storedValues = await getSyncStorage().get(platformOverridesStorageKey);
+  const overrides: unknown = storedValues[platformOverridesStorageKey] ?? {};
+
+  if (
+    typeof overrides !== "object" ||
+    overrides === null ||
+    Array.isArray(overrides)
+  ) {
+    throw new Error("Saved website details could not be read.");
+  }
+
+  const validatedOverrides: PlatformOverrides = {};
+
+  for (const [platformId, override] of Object.entries(overrides)) {
+    if (
+      typeof override !== "object" ||
+      override === null ||
+      !("name" in override) ||
+      typeof override.name !== "string" ||
+      !override.name.trim() ||
+      !("url" in override) ||
+      typeof override.url !== "string"
+    ) {
+      throw new Error("Saved website details could not be read.");
+    }
+
+    try {
+      validatedOverrides[platformId] = {
+        name: override.name.trim(),
+        url: normalizeWebsiteUrl(override.url),
+      };
+    } catch {
+      throw new Error("Saved website details could not be read.");
+    }
+  }
+
+  return validatedOverrides;
 }

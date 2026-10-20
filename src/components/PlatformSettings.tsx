@@ -2,9 +2,11 @@ import { settingDefinitions } from "../data/platforms";
 import type { Platform, PlatformSettingsState } from "../data/platforms";
 import { colors } from "../data/colors";
 import { SettingRow } from "./SettingRow";
+import editIcon from "../assets/edit.svg";
 
 type PlatformSettingsProps = {
   onBack: () => void;
+  onEdit: () => void;
   onToggleSetting: (settingId: string) => void;
   platform: Platform;
   settings: PlatformSettingsState[string];
@@ -12,6 +14,7 @@ type PlatformSettingsProps = {
 
 export function PlatformSettings({
   onBack,
+  onEdit,
   onToggleSetting,
   platform,
   settings,
@@ -46,6 +49,18 @@ export function PlatformSettings({
               strokeWidth="2"
             />
           </svg>
+        </button>
+        <button
+          aria-label={`Edit ${platform.name}`}
+          className="absolute right-4 top-5 flex size-10 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2"
+          onClick={onEdit}
+          style={{
+            color: colors.textPrimary,
+            outlineColor: colors.textPrimary,
+          }}
+          type="button"
+        >
+          <img alt="" className="size-6" src={editIcon} />
         </button>
         <h1 className="text-[28px] font-medium leading-tight">
           {platform.name}
