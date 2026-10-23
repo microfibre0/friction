@@ -61,7 +61,9 @@ export function PlatformEditor({
             />
           </svg>
         </button>
-        <h1 className="text-[28px] font-medium leading-tight">{platform.name}</h1>
+        <h1 className="text-[28px] font-medium leading-tight">
+          {platform.name}
+        </h1>
         <button
           aria-label="Save website details"
           className="absolute right-4 top-5 flex size-10 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
@@ -78,7 +80,11 @@ export function PlatformEditor({
         style={{ backgroundColor: platform.colors.lower }}
       >
         {storageError && (
-          <p className="text-[12px]" role="alert" style={{ color: colors.textPrimary }}>
+          <p
+            className="text-[12px]"
+            role="alert"
+            style={{ color: colors.textPrimary }}
+          >
             {storageError}
           </p>
         )}
