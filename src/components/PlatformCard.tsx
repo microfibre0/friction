@@ -1,9 +1,10 @@
 import { colors } from "../data/colors";
 import type { Platform } from "../data/platforms";
+import paletteIcon from "../assets/Color palette.svg";
 
 type PlatformCardProps = {
   activeCount: number;
-  onChangeColor: (color: string) => void;
+  onOpenColorPicker: (platform: Platform) => void;
   onRemove?: () => void;
   platform: Platform;
   onSelect: (platformId: string) => void;
@@ -11,7 +12,7 @@ type PlatformCardProps = {
 
 export function PlatformCard({
   activeCount,
-  onChangeColor,
+  onOpenColorPicker,
   onRemove,
   platform,
   onSelect,
@@ -54,23 +55,20 @@ export function PlatformCard({
           {activeCount > 0 ? `${activeCount} active` : "inactive"}
         </span>
       </button>
-      <label
-        className="absolute right-4 top-3 flex h-7 w-9 cursor-pointer items-center justify-center"
+      <button
+        aria-label={`Change ${platform.name} card color`}
+        className="absolute right-4 top-3 flex size-7 items-center justify-center rounded focus-visible:outline-2 focus-visible:outline-offset-2"
+        onClick={() => onOpenColorPicker(platform)}
+        style={{ outlineColor: colors.textPrimary }}
         title={`Change ${platform.name} card color`}
+        type="button"
       >
-        <span className="sr-only">Change {platform.name} card color</span>
-        <input
-          aria-label={`Change ${platform.name} card color`}
-          className="platform-color-picker h-6 w-8 cursor-pointer"
-          onChange={(event) => onChangeColor(event.target.value)}
-          type="color"
-          value={platform.colors.card}
-        />
-      </label>
+        <img alt="" className="size-6" src={paletteIcon} />
+      </button>
       {onRemove && (
         <button
           aria-label={`Remove ${platform.name}`}
-          className="absolute right-14 top-3 flex size-7 items-center justify-center rounded focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="absolute right-12 top-3 flex size-7 items-center justify-center rounded focus-visible:outline-2 focus-visible:outline-offset-2"
           onClick={onRemove}
           style={{
             color: colors.textPrimary,

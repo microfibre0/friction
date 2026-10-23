@@ -3,11 +3,12 @@ import { colors } from "../data/colors";
 import type { Platform, PlatformSettingsState } from "../data/platforms";
 import { BrandHeader } from "./BrandHeader";
 import { PlatformCard } from "./PlatformCard";
+import { PlatformColorPicker } from "./PlatformColorPicker";
 import plusIcon from "../assets/gray plus.svg";
 
 type PlatformListProps = {
   onAddWebsite: (website: string) => Promise<boolean>;
-  onChangeCardColor: (platformId: string, color: string) => Promise<void>;
+  onChangeCardColor: (platformId: string, color: string) => Promise<boolean>;
   onDismissError: () => void;
   onRemoveWebsite: (website: string) => Promise<void>;
   onSelectPlatform: (platformId: string) => void;
@@ -29,6 +30,40 @@ export function PlatformList({
   const [isAddingWebsite, setIsAddingWebsite] = useState(false);
   const [websiteInput, setWebsiteInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [colorPickerPlatformId, setColorPickerPlatformId] = useState<
+    string | null
+  >(null);
+  const [draftColor, setDraftColor] = useState<string | null>(null);
+  const colorPickerPlatform = platforms.find(
+    (platform) => platform.id === colorPickerPlatformId,
+  );
+
+  function openColorPicker(platform: Platform) {
+    setColorPickerPlatformId(platform.id);
+    setDraftColor(platform.colors.card);
+    onDismissError();
+  }
+
+  function discardColor() {
+    setColorPickerPlatformId(null);
+    setDraftColor(null);
+    onDismissError();
+  }
+
+  async function keepColor() {
+    if (!colorPickerPlatform || !draftColor) {
+      return;
+    }
+
+    const wasSaved = await onChangeCardColor(
+      colorPickerPlatform.id,
+      draftColor,
+    );
+    if (wasSaved) {
+      setColorPickerPlatformId(null);
+      setDraftColor(null);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,8 +77,24 @@ export function PlatformList({
     }
   }
 
-  return (
-    <div className="flex h-full flex-col">
+  return colorPickerPlatform && draftColor ? (
+    <PlatformColorPicker
+      activeCount={
+        Object.values(settings[colorPickerPlatform.id] ?? {}).filter(Boolean)
+          .length
+      }
+      color={draftColor}
+      error={storageError}
+      onDiscard={discardColor}
+      onKeep={() => void keepColor()}
+      onSelectColor={(color) => {
+        setDraftColor(color);
+        if (storageError) onDismissError();
+      }}
+      platform={colorPickerPlatform}
+    />
+  ) : (
+    <div className="flex h-full flex-col overflow-hidden">
       <BrandHeader />
       <div className="min-h-0 flex-1 overflow-y-auto">
         {platforms.map((platform) => (
@@ -52,9 +103,7 @@ export function PlatformList({
               Object.values(settings[platform.id] ?? {}).filter(Boolean).length
             }
             key={platform.id}
-            onChangeColor={(color) =>
-              onChangeCardColor(platform.id, color)
-            }
+            onOpenColorPicker={openColorPicker}
             onRemove={
               platform.id.startsWith("custom:")
                 ? () =>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { platforms, settingDefinitions } from "./data/platforms";
 import type { Platform, PlatformSettingsState } from "./data/platforms";
-import { colors } from "./data/colors";
+import { colors, getPlatformColorsFromCard } from "./data/colors";
 import {
   loadCustomWebsites,
   loadPlatformCardColors,
@@ -21,23 +21,6 @@ function createSettingsForPlatform(): PlatformSettingsState[string] {
   return Object.fromEntries(
     settingDefinitions.map((setting) => [setting.id, setting.defaultEnabled]),
   );
-}
-
-function darkenColor(hexColor: string, factor: number): string {
-  const channels = hexColor.match(/^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i);
-
-  if (!channels) {
-    return hexColor;
-  }
-
-  return `#${channels
-    .slice(1)
-    .map((channel) =>
-      Math.round(Number.parseInt(channel, 16) * factor)
-        .toString(16)
-        .padStart(2, "0"),
-    )
-    .join("")}`;
 }
 
 function App() {
@@ -124,14 +107,7 @@ function App() {
       name: override?.name ?? platform.name,
       website: override ? new URL(override.url).host : platform.website,
       url: override?.url ?? platform.url,
-      colors: cardColor
-        ? {
-            card: cardColor,
-            header: darkenColor(cardColor, 0.48),
-            option: darkenColor(cardColor, 0.74),
-            lower: darkenColor(cardColor, 0.34),
-          }
-        : platform.colors,
+      colors: cardColor ? getPlatformColorsFromCard(cardColor) : platform.colors,
     };
   });
 
@@ -274,17 +250,19 @@ function App() {
   async function updatePlatformCardColor(
     platformId: string,
     color: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     setStorageError(null);
 
     try {
       const nextCardColors = { ...platformCardColors, [platformId]: color };
       await savePlatformCardColors(nextCardColors);
       setPlatformCardColors(nextCardColors);
+      return true;
     } catch (error: unknown) {
       setStorageError(
         error instanceof Error ? error.message : "Platform color could not be saved.",
       );
+      return false;
     }
   }
 

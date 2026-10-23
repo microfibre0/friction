@@ -24,3 +24,33 @@ export const colors = {
     },
   },
 } as const;
+
+export const platformColorHues = [
+  0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330,
+];
+
+export function darkenColor(hexColor: string, factor: number): string {
+  const channels = hexColor.match(/^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i);
+
+  if (!channels) {
+    return hexColor;
+  }
+
+  return `#${channels
+    .slice(1)
+    .map((channel) =>
+      Math.round(Number.parseInt(channel, 16) * factor)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
+export function getPlatformColorsFromCard(cardColor: string) {
+  return {
+    card: cardColor,
+    header: darkenColor(cardColor, 0.48),
+    option: darkenColor(cardColor, 0.74),
+    lower: darkenColor(cardColor, 0.34),
+  };
+}
