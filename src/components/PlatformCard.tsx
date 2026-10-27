@@ -38,8 +38,20 @@ export function PlatformCard({
         >
           {platform.description}
         </span>
+      </button>
+      <div className="pointer-events-none absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
+        <button
+          aria-label={`Change ${platform.name} card color`}
+          className="pointer-events-auto flex size-7 items-center justify-center rounded focus-visible:outline-2 focus-visible:outline-offset-2"
+          onClick={() => onOpenColorPicker(platform)}
+          style={{ outlineColor: colors.textPrimary }}
+          title={`Change ${platform.name} card color`}
+          type="button"
+        >
+          <img alt="" className="size-6" src={paletteIcon} />
+        </button>
         <span
-          className="absolute right-4 top-1/2 inline-flex -translate-y-1/2 items-center gap-2 rounded-full px-3 py-1 text-[12px]"
+          className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px]"
           style={{
             backgroundColor: colors.statusBackground,
             color: colors.statusText,
@@ -54,17 +66,7 @@ export function PlatformCard({
           />
           {activeCount > 0 ? `${activeCount} active` : "inactive"}
         </span>
-      </button>
-      <button
-        aria-label={`Change ${platform.name} card color`}
-        className="absolute right-4 top-3 flex size-7 items-center justify-center rounded focus-visible:outline-2 focus-visible:outline-offset-2"
-        onClick={() => onOpenColorPicker(platform)}
-        style={{ outlineColor: colors.textPrimary }}
-        title={`Change ${platform.name} card color`}
-        type="button"
-      >
-        <img alt="" className="size-6" src={paletteIcon} />
-      </button>
+      </div>
       {onRemove && (
         <button
           aria-label={`Remove ${platform.name}`}
