@@ -6,9 +6,11 @@ import {
   loadCustomWebsites,
   loadPlatformCardColors,
   loadPlatformOverrides,
+  loadPlatformSettings,
   normalizeWebsiteUrl,
   saveCustomWebsites,
   savePlatformCardColors,
+  savePlatformSettings,
   saveWebsitePreferences,
   type PlatformOverrides,
 } from "./data/websiteStorage";
@@ -51,24 +53,33 @@ function App() {
       loadCustomWebsites(),
       loadPlatformCardColors(),
       loadPlatformOverrides(),
+      loadPlatformSettings(),
     ])
-      .then(([websites, savedCardColors, savedOverrides]) => {
+      .then(([websites, savedCardColors, savedOverrides, savedSettings]) => {
         if (isMounted) {
           setCustomWebsites(websites);
           setPlatformCardColors(savedCardColors);
           setPlatformOverrides(savedOverrides);
-          setSettings((currentSettings) => ({
-            ...currentSettings,
-            ...Object.fromEntries(
-              websites.map((website) => {
-                const platformId = `custom:${website}`;
-                return [
-                  platformId,
-                  currentSettings[platformId] ?? createSettingsForPlatform(),
-                ];
-              }),
-            ),
-          }));
+
+          const nextSettings = { ...Object.fromEntries(
+            platforms.map((platform) => [
+              platform.id,
+              {
+                ...createSettingsForPlatform(),
+                ...savedSettings[platform.id],
+              },
+            ]),
+          ) };
+
+          for (const website of websites) {
+            const platformId = `custom:${website}`;
+            nextSettings[platformId] = {
+              ...createSettingsForPlatform(),
+              ...savedSettings[platformId],
+            };
+          }
+
+          setSettings(nextSettings);
         }
       })
       .catch((error: unknown) => {
@@ -115,6 +126,14 @@ function App() {
     (platform) => platform.id === selectedPlatformId,
   );
 
+  function persistSettings(nextSettings: PlatformSettingsState): void {
+    void savePlatformSettings(nextSettings).catch((error: unknown) => {
+      setStorageError(
+        error instanceof Error ? error.message : "Settings could not be saved.",
+      );
+    });
+  }
+
   async function addWebsite(value: string): Promise<boolean> {
     setStorageError(null);
 
@@ -131,10 +150,14 @@ function App() {
       const nextWebsites = [...customWebsites, website];
       await saveCustomWebsites(nextWebsites);
       setCustomWebsites(nextWebsites);
-      setSettings((currentSettings) => ({
-        ...currentSettings,
-        [`custom:${website}`]: createSettingsForPlatform(),
-      }));
+      setSettings((currentSettings) => {
+        const nextSettings = {
+          ...currentSettings,
+          [`custom:${website}`]: createSettingsForPlatform(),
+        };
+        persistSettings(nextSettings);
+        return nextSettings;
+      });
       return true;
     } catch (error: unknown) {
       setStorageError(
@@ -162,6 +185,7 @@ function App() {
       setSettings((currentSettings) => {
         const nextSettings = { ...currentSettings };
         delete nextSettings[platformId];
+        persistSettings(nextSettings);
         return nextSettings;
       });
     } catch (error: unknown) {
@@ -233,6 +257,7 @@ function App() {
             nextSettings[nextPlatformId] = nextSettings[platformId];
             delete nextSettings[platformId];
           }
+          persistSettings(nextSettings);
           return nextSettings;
         });
       }
@@ -266,19 +291,61 @@ function App() {
     }
   }
 
-  function toggleSetting(platformId: string, settingId: string) {
-    setSettings((currentSettings) => {
-      const platformSettings =
-        currentSettings[platformId] ?? createSettingsForPlatform();
+  async function toggleSetting(platformId: string, settingId: string) {
+    setStorageError(null);
+    const platformSettings =
+      settings[platformId] ?? createSettingsForPlatform();
+    const nextSettings = {
+      ...settings,
+      [platformId]: {
+        ...platformSettings,
+        [settingId]: !platformSettings[settingId],
+      },
+    };
 
-      return {
-        ...currentSettings,
-        [platformId]: {
-          ...platformSettings,
-          [settingId]: !platformSettings[settingId],
-        },
-      };
-    });
+    try {
+      await savePlatformSettings(nextSettings);
+    } catch (error: unknown) {
+      setStorageError(
+        error instanceof Error
+          ? error.message
+          : "Settings could not be saved.",
+      );
+      return;
+    }
+
+    setSettings(nextSettings);
+
+    const platform = allPlatforms.find((item) => item.id === platformId);
+    if (!platform || typeof chrome === "undefined" || !chrome.tabs) {
+      return;
+    }
+
+    try {
+      const activeTabs = await chrome.tabs.query({
+        active: true,
+        lastFocusedWindow: true,
+      });
+      const activeTab = activeTabs[0];
+
+      if (activeTab?.id !== undefined && activeTab.url) {
+        const activeUrl = new URL(activeTab.url);
+        const platformOrigin = new URL(platform.url).origin;
+
+        if (
+          (activeUrl.protocol === "http:" || activeUrl.protocol === "https:") &&
+          activeUrl.origin === platformOrigin
+        ) {
+          await chrome.tabs.reload(activeTab.id);
+        }
+      }
+    } catch (error: unknown) {
+      setStorageError(
+        error instanceof Error
+          ? `Setting saved, but the page could not be refreshed: ${error.message}`
+          : "Setting saved, but the page could not be refreshed.",
+      );
+    }
   }
 
   return (

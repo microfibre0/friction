@@ -1,6 +1,7 @@
 const customWebsitesStorageKey = "customWebsites";
 const platformCardColorsStorageKey = "platformCardColors";
 const platformOverridesStorageKey = "platformOverrides";
+const platformSettingsStorageKey = "platformSettings";
 
 export type PlatformCardColors = Record<string, string>;
 export type PlatformOverride = {
@@ -8,6 +9,7 @@ export type PlatformOverride = {
   url: string;
 };
 export type PlatformOverrides = Record<string, PlatformOverride>;
+export type PlatformSettingsState = Record<string, Record<string, boolean>>;
 
 export function normalizeWebsiteUrl(value: string): string {
   const trimmedValue = value.trim();
@@ -72,6 +74,52 @@ export async function saveWebsitePreferences(
     [customWebsitesStorageKey]: websites,
     [platformCardColorsStorageKey]: cardColors,
     [platformOverridesStorageKey]: platformOverrides,
+  });
+}
+
+export async function loadPlatformSettings(): Promise<PlatformSettingsState> {
+  const storedValues = await getSyncStorage().get(platformSettingsStorageKey);
+  const settings: unknown = storedValues[platformSettingsStorageKey] ?? {};
+
+  if (
+    typeof settings !== "object" ||
+    settings === null ||
+    Array.isArray(settings)
+  ) {
+    throw new Error("Saved platform settings could not be read.");
+  }
+
+  const validatedSettings: PlatformSettingsState = {};
+
+  for (const [platformId, platformSettingValues] of Object.entries(settings)) {
+    if (
+      typeof platformSettingValues !== "object" ||
+      platformSettingValues === null ||
+      Array.isArray(platformSettingValues)
+    ) {
+      throw new Error("Saved platform settings could not be read.");
+    }
+
+    const normalizedSettings: Record<string, boolean> = {};
+
+    for (const [settingId, enabledValue] of Object.entries(platformSettingValues)) {
+      if (typeof enabledValue !== "boolean") {
+        throw new Error("Saved platform settings could not be read.");
+      }
+      normalizedSettings[settingId] = enabledValue;
+    }
+
+    validatedSettings[platformId] = normalizedSettings;
+  }
+
+  return validatedSettings;
+}
+
+export async function savePlatformSettings(
+  settings: PlatformSettingsState,
+): Promise<void> {
+  await getSyncStorage().set({
+    [platformSettingsStorageKey]: settings,
   });
 }
 
