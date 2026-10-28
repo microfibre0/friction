@@ -19,6 +19,10 @@ export function PlatformSettings({
   platform,
   settings,
 }: PlatformSettingsProps) {
+  const visibleSettings = settingDefinitions.filter(
+    (setting) => !setting.builtInOnly || !platform.id.startsWith("custom:"),
+  );
+
   return (
     <div className="flex h-full flex-col">
       <header
@@ -71,7 +75,7 @@ export function PlatformSettings({
       </header>
 
       <div className="shrink-0">
-        {settingDefinitions.map((setting) => (
+        {visibleSettings.map((setting) => (
           <SettingRow
             key={setting.id}
             description={setting.description}

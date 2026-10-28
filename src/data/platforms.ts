@@ -19,6 +19,7 @@ export type SettingDefinition = {
   label: string;
   description: string;
   defaultEnabled: boolean;
+  builtInOnly?: boolean;
 };
 
 export type PlatformSettingsState = Record<
@@ -58,5 +59,11 @@ export const settingDefinitions: SettingDefinition[] = [
     description: "delays action after button presses",
     defaultEnabled: false,
   },
-
+  {
+    id: "youtubePauseAutoplayOnHover",
+    label: "Disable hover previews",
+    description: "removes YouTube's video preview wrapper while preserving its children.",
+    defaultEnabled: false,
+    builtInOnly: true,
+  },
 ];

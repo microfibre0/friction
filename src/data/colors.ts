@@ -46,11 +46,17 @@ export function darkenColor(hexColor: string, factor: number): string {
     .join("")}`;
 }
 
+const COLOR_DARKEN_FACTORS = {
+  header: 0.48,
+  option: 0.74,
+  lower:0.34
+};
+
 export function getPlatformColorsFromCard(cardColor: string) {
   return {
     card: cardColor,
-    header: darkenColor(cardColor, 0.48),
-    option: darkenColor(cardColor, 0.74),
-    lower: darkenColor(cardColor, 0.34),
+    header: darkenColor(cardColor, COLOR_DARKEN_FACTORS.header),
+    option: darkenColor(cardColor,COLOR_DARKEN_FACTORS.option),
+    lower: darkenColor(cardColor, COLOR_DARKEN_FACTORS.lower),
   };
 }
