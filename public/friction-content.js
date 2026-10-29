@@ -36,6 +36,7 @@
     devSettings: { ...DEFAULT_DEV_SETTINGS },
     observer: null,
     scheduledMutationRun: false,
+    timerListenerAttached: false,
   };
 
   function readStorage(keys) {
@@ -110,7 +111,6 @@
 
       const overlay = document.createElement("button");
       overlay.type = "button";
-      overlay.textContent = "Tap to remove";
       overlay.setAttribute("aria-label", "Remove hidden image");
       overlay.dataset.frictionOverlayApplied = "true";
       overlay.style.position = "absolute";
@@ -132,138 +132,151 @@
       overlay.style.whiteSpace = "normal";
       overlay.style.touchAction = "manipulation";
 
+      const label = document.createElement("span");
+      label.textContent = "Tap to remove";
+      label.style.position = "absolute";
+      label.style.left = "50%";
+      label.style.top = "50%";
+      label.style.transform = "translate(-50%, -50%)";
+      label.style.width = "max-content";
+      label.style.whiteSpace = "nowrap";
+      overlay.appendChild(label);
+
+      const updateOverlayLabel = () => {
+        const imageRect = image.getBoundingClientRect();
+        const labelRect = label.getBoundingClientRect();
+        const overlayStyles = window.getComputedStyle(overlay);
+        const horizontalPadding =
+          Number.parseFloat(overlayStyles.paddingLeft) +
+          Number.parseFloat(overlayStyles.paddingRight);
+        const verticalPadding =
+          Number.parseFloat(overlayStyles.paddingTop) +
+          Number.parseFloat(overlayStyles.paddingBottom);
+        const isTooSmall =
+          imageRect.width < labelRect.width + horizontalPadding ||
+          imageRect.height < labelRect.height + verticalPadding;
+
+        if (isTooSmall) {
+          overlay.title = "Tap to remove";
+          label.style.visibility = "hidden";
+        } else {
+          overlay.removeAttribute("title");
+          label.style.visibility = "visible";
+        }
+      };
+
+      const resizeObserver = new ResizeObserver(updateOverlayLabel);
+      resizeObserver.observe(wrapper);
+
       overlay.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
+        resizeObserver.disconnect();
         overlay.remove();
       });
 
       wrapper.appendChild(overlay);
+      updateOverlayLabel();
       image.dataset.frictionOverlayApplied = "true";
     });
   }
 
-  function hasOnlyIconContent(element) {
-    if (!element) {
-      return false;
-    }
-
-    const text = (element.textContent || "").trim();
-
-    if (!text) {
-      return true;
-    }
-
-    return Boolean(element.querySelector("svg, img, i, .icon"));
-  }
-
   function applyButtonTimers(buttonTimerSeconds) {
-    const candidates = document.querySelectorAll("button, a");
+    if (state.timerListenerAttached) {
+      return;
+    }
 
-    candidates.forEach((element) => {
-      if (element.dataset.frictionTimerBound === "true") {
-        return;
-      }
+    const timerSeconds = Number(buttonTimerSeconds) || 5;
 
-      const timerSeconds = Number(buttonTimerSeconds) || 5;
-      const originalText = element.textContent?.trim() || "";
-
-      element.dataset.frictionTimerBound = "true";
-
-      const restoreButtonState = () => {
-        element.style.opacity = "";
-        element.style.filter = "";
-        element.style.pointerEvents = "";
-        element.style.cursor = "";
-
-        if (element instanceof HTMLButtonElement) {
-          element.disabled = false;
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (!(event.target instanceof Element)) {
+          return;
         }
 
-        if (element instanceof HTMLAnchorElement) {
-          element.removeAttribute("aria-disabled");
-          element.style.color = "";
-          element.style.textDecoration = "";
-        }
-
+        const element = event.target.closest("button, a");
         if (
-          element.dataset.frictionOriginalText &&
-          (!hasOnlyIconContent(element) || originalText)
+          !(element instanceof HTMLButtonElement) &&
+          !(element instanceof HTMLAnchorElement)
         ) {
-          const previousText = element.dataset.frictionOriginalText;
-          element.textContent = previousText;
-          delete element.dataset.frictionOriginalText;
-        }
-      };
-
-      const setTimerState = (remainingSeconds) => {
-        if (element instanceof HTMLButtonElement) {
-          element.disabled = true;
+          return;
         }
 
-        if (element instanceof HTMLAnchorElement) {
-          element.setAttribute("aria-disabled", "true");
-          element.style.pointerEvents = "none";
-          element.style.color = "#7a7a7a";
-          element.style.textDecoration = "none";
+        if (element.dataset.frictionOverlayApplied === "true") {
+          return;
         }
 
-        element.style.opacity = "0.5";
-        element.style.filter = "grayscale(1)";
-        element.style.cursor = "not-allowed";
-
-        if (!hasOnlyIconContent(element) && element.textContent) {
-          const text = `${remainingSeconds} seconds remaining`;
-          element.dataset.frictionOriginalText =
-            element.dataset.frictionOriginalText || originalText;
-          element.textContent = text;
-        }
-      };
-
-      element.addEventListener("click", (event) => {
         if (element.dataset.frictionBypassDelay === "true") {
-          element.dataset.frictionBypassDelay = "false";
+          delete element.dataset.frictionBypassDelay;
           return;
         }
 
         if (element.dataset.frictionPendingSecondPress === "true") {
-          element.dataset.frictionPendingSecondPress = "false";
-          restoreButtonState();
-          element.dataset.frictionBypassDelay = "true";
-          element.click();
-          return;
-        }
-
-        if (element.dataset.frictionTimerActive === "true") {
-          event.preventDefault();
-          event.stopPropagation();
+          delete element.dataset.frictionPendingSecondPress;
           return;
         }
 
         event.preventDefault();
-        event.stopPropagation();
+        event.stopImmediatePropagation();
+
+        if (element.dataset.frictionTimerActive === "true") {
+          return;
+        }
 
         element.dataset.frictionTimerActive = "true";
-        let remaining = timerSeconds;
-        setTimerState(remaining);
+        const originalStyles = {
+          opacity: element.style.opacity,
+          filter: element.style.filter,
+          cursor: element.style.cursor,
+          color: element.style.color,
+          textDecoration: element.style.textDecoration,
+          ariaDisabled: element.getAttribute("aria-disabled"),
+        };
+        const timerLabel = document.createElement("span");
+        timerLabel.textContent = `${timerSeconds} seconds remaining`;
+        timerLabel.style.marginInlineStart = "0.5em";
+        timerLabel.style.fontSize = "0.85em";
+        timerLabel.style.color = "#808080";
+        timerLabel.dataset.frictionTimerLabel = "true";
+        element.parentNode?.insertBefore(timerLabel, element.nextSibling);
 
+        element.style.opacity = "0.5";
+        element.style.filter = "grayscale(1)";
+        element.style.cursor = "not-allowed";
+        element.setAttribute("aria-disabled", "true");
+
+        let remaining = timerSeconds;
         const intervalId = window.setInterval(() => {
           remaining -= 1;
 
-          if (remaining <= 0) {
-            window.clearInterval(intervalId);
-            element.dataset.frictionTimerActive = "false";
-            element.dataset.frictionPendingSecondPress = "true";
-            restoreButtonState();
+          if (remaining > 0) {
+            timerLabel.textContent = `${remaining} seconds remaining`;
             return;
           }
 
-          if (!hasOnlyIconContent(element) && element.textContent) {
-            element.textContent = `${remaining} seconds remaining`;
+          window.clearInterval(intervalId);
+          element.dataset.frictionTimerActive = "false";
+          element.dataset.frictionPendingSecondPress = "true";
+          timerLabel.remove();
+          element.style.opacity = originalStyles.opacity;
+          element.style.filter = originalStyles.filter;
+          element.style.cursor = originalStyles.cursor;
+          element.style.color = originalStyles.color;
+          element.style.textDecoration = originalStyles.textDecoration;
+
+          if (originalStyles.ariaDisabled === null) {
+            element.removeAttribute("aria-disabled");
+          } else {
+            element.setAttribute("aria-disabled", originalStyles.ariaDisabled);
           }
+
         }, 1000);
-      });
-    });
+      },
+      true,
+    );
+
+    state.timerListenerAttached = true;
   }
 
   function getSiteSettings() {
