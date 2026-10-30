@@ -1,7 +1,11 @@
+import { settingDefinitions } from "./platforms";
+
 const customWebsitesStorageKey = "customWebsites";
 const platformCardColorsStorageKey = "platformCardColors";
 const platformOverridesStorageKey = "platformOverrides";
 const platformSettingsStorageKey = "platformSettings";
+const legacyFacebookVideoSettingId = "facebookPreventVideoHover";
+const legacyYouTubePreviewSettingId = "youtubePauseAutoplayOnHover";
 
 export type PlatformCardColors = Record<string, string>;
 export type PlatformOverride = {
@@ -90,6 +94,9 @@ export async function loadPlatformSettings(): Promise<PlatformSettingsState> {
   }
 
   const validatedSettings: PlatformSettingsState = {};
+  let hasInapplicableSettings = false;
+  let hasLegacyFacebookVideoSetting = false;
+  let hasLegacyYouTubePreviewSetting = false;
 
   for (const [platformId, platformSettingValues] of Object.entries(settings)) {
     if (
@@ -101,15 +108,52 @@ export async function loadPlatformSettings(): Promise<PlatformSettingsState> {
     }
 
     const normalizedSettings: Record<string, boolean> = {};
+    let shouldEnableHideImages = false;
 
     for (const [settingId, enabledValue] of Object.entries(platformSettingValues)) {
       if (typeof enabledValue !== "boolean") {
         throw new Error("Saved platform settings could not be read.");
       }
+
+      if (platformId === "facebook" && settingId === legacyFacebookVideoSettingId) {
+        hasLegacyFacebookVideoSetting = true;
+        shouldEnableHideImages = shouldEnableHideImages || enabledValue;
+        continue;
+      }
+
+      if (platformId === "youtube" && settingId === legacyYouTubePreviewSettingId) {
+        hasLegacyYouTubePreviewSetting = true;
+        shouldEnableHideImages = shouldEnableHideImages || enabledValue;
+        continue;
+      }
+
+      const definition = settingDefinitions.find(
+        (setting) => setting.id === settingId,
+      );
+      if (
+        definition?.platformIds &&
+        !definition.platformIds.includes(platformId)
+      ) {
+        hasInapplicableSettings = true;
+        continue;
+      }
+
       normalizedSettings[settingId] = enabledValue;
     }
 
+    if (shouldEnableHideImages) {
+      normalizedSettings.hideImages = true;
+    }
+
     validatedSettings[platformId] = normalizedSettings;
+  }
+
+  if (
+    hasInapplicableSettings ||
+    hasLegacyFacebookVideoSetting ||
+    hasLegacyYouTubePreviewSetting
+  ) {
+    await savePlatformSettings(validatedSettings);
   }
 
   return validatedSettings;

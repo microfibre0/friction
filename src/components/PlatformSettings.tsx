@@ -20,7 +20,8 @@ export function PlatformSettings({
   settings,
 }: PlatformSettingsProps) {
   const visibleSettings = settingDefinitions.filter(
-    (setting) => !setting.builtInOnly || !platform.id.startsWith("custom:"),
+    (setting) =>
+      !setting.platformIds || setting.platformIds.includes(platform.id),
   );
 
   return (
