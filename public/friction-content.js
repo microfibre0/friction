@@ -19,8 +19,7 @@
 
   const BUILT_IN_SITE_BEHAVIORS = {
     youtube: {
-      youtubePauseAutoplayOnHover: {
-        label: "Disable YouTube hover previews",
+      hideVideoPreviews: {
         apply() {
           document.querySelectorAll("ytd-video-preview").forEach((preview) => {
             preview.replaceWith(...preview.childNodes);
@@ -37,6 +36,9 @@
     observer: null,
     scheduledMutationRun: false,
     timerListenerAttached: false,
+    videoPlaybackProtectionAttached: false,
+    imageOverlays: [],
+    imageOverlayPositioningAttached: false,
   };
 
   function readStorage(keys) {
@@ -86,35 +88,54 @@
     return Boolean(platformSettings[matchedPlatformId]);
   }
 
+  function getImageOverlayHost(image) {
+    let ancestor = image.parentElement;
+
+    while (ancestor && ancestor !== document.documentElement) {
+      const styles = window.getComputedStyle(ancestor);
+      if (
+        styles.position !== "static" ||
+        styles.transform !== "none" ||
+        styles.perspective !== "none" ||
+        styles.filter !== "none" ||
+        /paint|layout|strict|content/.test(styles.contain)
+      ) {
+        return ancestor;
+      }
+
+      ancestor = ancestor.parentElement;
+    }
+
+    return document.body || document.documentElement;
+  }
+
+  function describeElement(element) {
+    const classes =
+      typeof element.className === "string"
+        ? element.className.trim().split(/\s+/).slice(0, 3).join(".")
+        : "";
+    return `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ""}${classes ? `.${classes}` : ""}`;
+  }
+
   function applyImageHiding() {
     const images = document.querySelectorAll("img");
 
     images.forEach((image) => {
       if (image.dataset.frictionOverlayApplied === "true") {
+        state.imageOverlays
+          .find((entry) => entry.image === image)
+          ?.updateOverlay();
         return;
       }
 
-      const wrapper = document.createElement("div");
-      wrapper.style.position = "relative";
-      wrapper.style.display = "inline-block";
-      wrapper.style.maxWidth = "100%";
-      wrapper.style.verticalAlign = "middle";
-      wrapper.style.overflow = "hidden";
-
-      const parent = image.parentNode;
-      if (!parent) {
-        return;
-      }
-
-      parent.insertBefore(wrapper, image);
-      wrapper.appendChild(image);
+      let host = getImageOverlayHost(image);
 
       const overlay = document.createElement("button");
       overlay.type = "button";
       overlay.setAttribute("aria-label", "Remove hidden image");
       overlay.dataset.frictionOverlayApplied = "true";
+      overlay.dataset.frictionOverlayHost = describeElement(host);
       overlay.style.position = "absolute";
-      overlay.style.inset = "0";
       overlay.style.zIndex = "10";
       overlay.style.display = "grid";
       overlay.style.placeItems = "center";
@@ -142,8 +163,55 @@
       label.style.whiteSpace = "nowrap";
       overlay.appendChild(label);
 
-      const updateOverlayLabel = () => {
+      let resizeObserver;
+      const updateOverlay = () => {
+        if (!image.isConnected) {
+          overlay.remove();
+          delete image.dataset.frictionOverlayApplied;
+          state.imageOverlays = state.imageOverlays.filter(
+            (entry) => entry.image !== image,
+          );
+          return;
+        }
+
+        if (!host.isConnected || !host.contains(image)) {
+          resizeObserver?.unobserve(host);
+          host = getImageOverlayHost(image);
+          host.appendChild(overlay);
+          overlay.dataset.frictionOverlayHost = describeElement(host);
+          resizeObserver?.observe(host);
+        }
+
         const imageRect = image.getBoundingClientRect();
+        const hostRect = host.getBoundingClientRect();
+        const hostStyles = window.getComputedStyle(host);
+        const isRootHost =
+          host === document.documentElement ||
+          (host === document.body &&
+            hostStyles.position === "static" &&
+            hostStyles.transform === "none" &&
+            hostStyles.perspective === "none" &&
+            hostStyles.filter === "none" &&
+            !/paint|layout|strict|content/.test(hostStyles.contain));
+        const top = isRootHost
+          ? imageRect.top + window.scrollY
+          : imageRect.top - hostRect.top - host.clientTop + host.scrollTop;
+        const left = isRootHost
+          ? imageRect.left + window.scrollX
+          : imageRect.left - hostRect.left - host.clientLeft + host.scrollLeft;
+        const styleValues = {
+          top: `${top}px`,
+          left: `${left}px`,
+          width: `${imageRect.width}px`,
+          height: `${imageRect.height}px`,
+          display: imageRect.width > 0 && imageRect.height > 0 ? "grid" : "none",
+        };
+        Object.entries(styleValues).forEach(([property, value]) => {
+          if (overlay.style[property] !== value) {
+            overlay.style[property] = value;
+          }
+        });
+
         const labelRect = label.getBoundingClientRect();
         const overlayStyles = window.getComputedStyle(overlay);
         const horizontalPadding =
@@ -157,28 +225,139 @@
           imageRect.height < labelRect.height + verticalPadding;
 
         if (isTooSmall) {
-          overlay.title = "Tap to remove";
-          label.style.visibility = "hidden";
+          if (overlay.title !== "Tap to remove") {
+            overlay.title = "Tap to remove";
+          }
+          if (label.style.visibility !== "hidden") {
+            label.style.visibility = "hidden";
+          }
         } else {
-          overlay.removeAttribute("title");
-          label.style.visibility = "visible";
+          if (overlay.hasAttribute("title")) {
+            overlay.removeAttribute("title");
+          }
+          if (label.style.visibility !== "visible") {
+            label.style.visibility = "visible";
+          }
         }
       };
 
-      const resizeObserver = new ResizeObserver(updateOverlayLabel);
-      resizeObserver.observe(wrapper);
+      resizeObserver = new ResizeObserver(updateOverlay);
+      resizeObserver.observe(image);
+      resizeObserver.observe(host);
 
       overlay.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
         resizeObserver.disconnect();
         overlay.remove();
+        state.imageOverlays = state.imageOverlays.filter(
+          (entry) => entry.image !== image,
+        );
       });
 
-      wrapper.appendChild(overlay);
-      updateOverlayLabel();
+      host.appendChild(overlay);
+      state.imageOverlays.push({ image, overlay, updateOverlay });
       image.dataset.frictionOverlayApplied = "true";
+      updateOverlay();
     });
+
+    state.imageOverlays.forEach((entry) => entry.updateOverlay());
+
+    if (!state.imageOverlayPositioningAttached) {
+      const updateImageOverlays = () => {
+        state.imageOverlays.forEach((entry) => entry.updateOverlay());
+      };
+
+      window.addEventListener("scroll", updateImageOverlays, {
+        capture: true,
+        passive: true,
+      });
+      window.addEventListener("resize", updateImageOverlays);
+      state.imageOverlayPositioningAttached = true;
+    }
+  }
+
+  function applyFacebookVideoPlayerHiding() {
+    const videoPlayers = document.querySelectorAll("[data-video-id]");
+
+    videoPlayers.forEach((videoPlayer) => {
+      if (videoPlayer.dataset.frictionVideoOverlayApplied === "true") {
+        return;
+      }
+
+      const parent = videoPlayer.parentNode;
+      if (!parent) {
+        return;
+      }
+
+      const originalPosition = videoPlayer.style.position;
+      const needsPositioning =
+        window.getComputedStyle(videoPlayer).position === "static";
+
+      if (needsPositioning) {
+        videoPlayer.style.position = "relative";
+      }
+
+      const overlay = document.createElement("button");
+      overlay.type = "button";
+      overlay.textContent = "Tap to remove";
+      overlay.setAttribute("aria-label", "Remove hidden video");
+      overlay.dataset.frictionOverlayApplied = "true";
+      overlay.style.position = "absolute";
+      overlay.style.inset = "0";
+      overlay.style.zIndex = "10";
+      overlay.style.display = "grid";
+      overlay.style.placeItems = "center";
+      overlay.style.border = "none";
+      overlay.style.borderRadius = "0";
+      overlay.style.background = "rgb(0, 0, 0)";
+      overlay.style.color = "#ffffff";
+      overlay.style.fontWeight = "600";
+      overlay.style.fontSize = "14px";
+      overlay.style.cursor = "pointer";
+      overlay.style.padding = "12px";
+      overlay.style.boxSizing = "border-box";
+      overlay.style.textAlign = "center";
+      overlay.style.touchAction = "manipulation";
+
+      overlay.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        overlay.remove();
+
+        if (needsPositioning) {
+          videoPlayer.style.position = originalPosition;
+        }
+      });
+
+      videoPlayer.appendChild(overlay);
+      videoPlayer.dataset.frictionVideoOverlayApplied = "true";
+    });
+  }
+
+  function preventAutomaticVideoPlayback() {
+    const stopAutomaticVideoPlayback = (event) => {
+      const video = event.target;
+      if (!(video instanceof HTMLVideoElement)) {
+        return;
+      }
+
+      if (navigator.userActivation && !navigator.userActivation.isActive) {
+        video.pause();
+      }
+    };
+
+    const disableVideoAutoplay = (video) => {
+      video.autoplay = false;
+      video.removeAttribute("autoplay");
+    };
+
+    if (!state.videoPlaybackProtectionAttached) {
+      window.addEventListener("play", stopAutomaticVideoPlayback, true);
+      state.videoPlaybackProtectionAttached = true;
+    }
+
+    document.querySelectorAll("video").forEach(disableVideoAutoplay);
   }
 
   function applyButtonTimers(buttonTimerSeconds) {
@@ -282,18 +461,19 @@
   function getSiteSettings() {
     const currentOrigin = getCurrentOrigin();
     const customPlatformId = `custom:${currentOrigin}`;
+    const matchedPlatformId = Object.entries(BUILT_IN_PLATFORM_IDS).find(
+      ([, platformOrigin]) => platformOrigin === currentOrigin,
+    )?.[0];
 
     const platformSettings = state.platformSettings[customPlatformId]
-      ?? state.platformSettings.youtube
-      ?? state.platformSettings.facebook;
+      ?? (matchedPlatformId
+        ? state.platformSettings[matchedPlatformId]
+        : undefined);
 
     if (platformSettings) {
       return {
         hideImages: Boolean(platformSettings.hideImages),
         buttonTimers: Boolean(platformSettings.buttonTimers),
-        youtubePauseAutoplayOnHover: Boolean(
-          platformSettings.youtubePauseAutoplayOnHover,
-        ),
         buttonTimerSeconds: Number(state.devSettings.buttonTimerSeconds) || 5,
       };
     }
@@ -301,7 +481,6 @@
     return {
       hideImages: Boolean(state.devSettings.hideImages),
       buttonTimers: Boolean(state.devSettings.buttonTimers),
-      youtubePauseAutoplayOnHover: false,
       buttonTimerSeconds: Number(state.devSettings.buttonTimerSeconds) || 5,
     };
   }
@@ -317,13 +496,13 @@
     }
 
     const siteSettings = getSiteSettings();
-    const behaviorConfig = BUILT_IN_SITE_BEHAVIORS[matchedPlatformId];
+    if (!siteSettings.hideImages) {
+      return;
+    }
 
-    Object.entries(behaviorConfig).forEach(([settingId, behavior]) => {
-      if (siteSettings[settingId]) {
-        behavior.apply();
-      }
-    });
+    Object.values(BUILT_IN_SITE_BEHAVIORS[matchedPlatformId]).forEach(
+      (behavior) => behavior.apply(),
+    );
   }
 
   function runSiteMutations() {
@@ -338,13 +517,26 @@
 
     if (siteSettings.hideImages) {
       applyImageHiding();
+
+      if (
+        getCurrentOrigin() === BUILT_IN_PLATFORM_IDS.facebook ||
+        getCurrentOrigin() === BUILT_IN_PLATFORM_IDS.youtube
+      ) {
+        preventAutomaticVideoPlayback();
+      }
+
+      if (getCurrentOrigin() === BUILT_IN_PLATFORM_IDS.facebook) {
+        applyFacebookVideoPlayerHiding();
+      }
     }
 
     if (siteSettings.buttonTimers) {
       applyButtonTimers(siteSettings.buttonTimerSeconds);
     }
 
-    runBuiltInSiteBehaviors();
+    if (siteSettings.hideImages) {
+      runBuiltInSiteBehaviors();
+    }
   }
 
   function scheduleMutationRun() {
@@ -373,7 +565,15 @@
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["src", "href", "class", "style"],
+      attributeFilter: [
+        "src",
+        "href",
+        "class",
+        "style",
+        "aria-label",
+        "data-video-id",
+        "autoplay",
+      ],
     });
   }
 

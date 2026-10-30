@@ -19,7 +19,7 @@ export type SettingDefinition = {
   label: string;
   description: string;
   defaultEnabled: boolean;
-  builtInOnly?: boolean;
+  platformIds?: string[];
 };
 
 export type PlatformSettingsState = Record<
@@ -50,7 +50,8 @@ export const settingDefinitions: SettingDefinition[] = [
   {
     id: "hideImages",
     label: "Hide images",
-    description: "hides images, click on them to get them back.",
+    description:
+      "hides images, click on them to return them.",
     defaultEnabled: false,
   },
   {
@@ -58,12 +59,5 @@ export const settingDefinitions: SettingDefinition[] = [
     label: "button timers",
     description: "delays action after button presses",
     defaultEnabled: false,
-  },
-  {
-    id: "youtubePauseAutoplayOnHover",
-    label: "Disable hover previews",
-    description: "removes YouTube's video preview wrapper while preserving its children.",
-    defaultEnabled: false,
-    builtInOnly: true,
   },
 ];
