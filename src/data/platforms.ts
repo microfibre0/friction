@@ -60,4 +60,11 @@ export const settingDefinitions: SettingDefinition[] = [
     description: "delays action after button presses",
     defaultEnabled: false,
   },
+  {
+    id: "removeRecommendations",
+    label: "Remove recommendations",
+    description: "removes recommended videos from view",
+    defaultEnabled: false,
+    platformIds: ["youtube"],
+  },
 ];

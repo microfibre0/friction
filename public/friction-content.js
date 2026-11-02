@@ -474,6 +474,7 @@
       return {
         hideImages: Boolean(platformSettings.hideImages),
         buttonTimers: Boolean(platformSettings.buttonTimers),
+        removeRecommendations: Boolean(platformSettings.removeRecommendations),
         buttonTimerSeconds: Number(state.devSettings.buttonTimerSeconds) || 5,
       };
     }
@@ -481,6 +482,7 @@
     return {
       hideImages: Boolean(state.devSettings.hideImages),
       buttonTimers: Boolean(state.devSettings.buttonTimers),
+      removeRecommendations: false,
       buttonTimerSeconds: Number(state.devSettings.buttonTimerSeconds) || 5,
     };
   }
@@ -534,6 +536,16 @@
       applyButtonTimers(siteSettings.buttonTimerSeconds);
     }
 
+    if (
+      siteSettings.removeRecommendations &&
+      getCurrentOrigin() === BUILT_IN_PLATFORM_IDS.youtube
+    ) {
+      const recommendations = document.getElementById("related");
+      if (recommendations && recommendations.style.display !== "none") {
+        recommendations.style.display = "none";
+      }
+    }
+
     if (siteSettings.hideImages) {
       runBuiltInSiteBehaviors();
     }
@@ -569,6 +581,7 @@
         "src",
         "href",
         "class",
+        "id",
         "style",
         "aria-label",
         "data-video-id",
